@@ -5,6 +5,13 @@ import SwiftUI
 /// Provides pan and zoom gestures. Unfortunately it seems this
 /// can't be accomplished using purely SwiftUI because MagnificationGesture
 /// doesn't provide a center point.
+
+/// Minimum zoom level to prevent division by zero and extreme zoom out.
+private let minZoom: Double = 0.1
+
+/// Maximum zoom level to prevent extreme zoom in and numerical issues.
+private let maxZoom: Double = 10.0
+
 #if os(iOS) || os(visionOS)
 struct WorkspaceView: UIViewRepresentable {
     @Binding var pan: CGSize
@@ -36,11 +43,11 @@ struct WorkspaceView: UIViewRepresentable {
 
         @objc func zoomGesture(sender: UIPinchGestureRecognizer) {
             let p = sender.location(in: nil).size
-            let currentZoom = zoom
+            let currentZoom = max(zoom, minZoom)  // Ensure zoom is never below minimum
             let currentPan = pan
             let scale = sender.scale
 
-            let newZoom = scale * currentZoom
+            let newZoom = max(minZoom, min(maxZoom, scale * currentZoom))  // Clamp zoom
             let pLocal = p * (1.0 / currentZoom) - currentPan
             let newPan = p * (1.0 / newZoom) - pLocal
 
@@ -169,7 +176,7 @@ class PanView: NSView {
                 panSpeed = PanView.defaultPanSpeed
             }
 
-            let currentZoom = zoom
+            let currentZoom = max(zoom, minZoom)  // Ensure zoom is never below minimum
             let deltaX = panSpeed * event.deltaX / currentZoom
             let deltaY = panSpeed * event.deltaY / currentZoom
 
@@ -184,7 +191,7 @@ class PanView: NSView {
 
     @objc func panGesture(sender: NSPanGestureRecognizer) {
         let t = sender.translation(in: self)
-        let currentZoom = zoom
+        let currentZoom = max(zoom, minZoom)  // Ensure zoom is never below minimum
         let deltaX = t.x / currentZoom
         let deltaY = t.y / currentZoom
 
@@ -213,10 +220,10 @@ class PanView: NSView {
     }
 
     func zoom(at p: CGSize, scale: CGFloat) {
-        let currentZoom = zoom
+        let currentZoom = max(zoom, minZoom)  // Ensure zoom is never below minimum
         let currentPan = pan
 
-        let newZoom = scale * currentZoom
+        let newZoom = max(minZoom, min(maxZoom, scale * currentZoom))  // Clamp zoom
         let pLocal = p * (1.0 / currentZoom) - currentPan
         let newPan = p * (1.0 / newZoom) - pLocal
 

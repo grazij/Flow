@@ -34,11 +34,13 @@ extension NodeEditor {
     }
 
     func toLocal(_ p: CGPoint) -> CGPoint {
-        CGPoint(x: p.x / CGFloat(zoom), y: p.y / CGFloat(zoom)) - pan
+        let currentZoom = max(zoom, 0.1)  // Ensure zoom is never below minimum
+        return CGPoint(x: p.x / CGFloat(currentZoom), y: p.y / CGFloat(currentZoom)) - pan
     }
 
     func toLocal(_ sz: CGSize) -> CGSize {
-        CGSize(width: sz.width / CGFloat(zoom), height: sz.height / CGFloat(zoom))
+        let currentZoom = max(zoom, 0.1)  // Ensure zoom is never below minimum
+        return CGSize(width: sz.width / CGFloat(currentZoom), height: sz.height / CGFloat(currentZoom))
     }
 
 #if os(macOS)

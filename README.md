@@ -46,7 +46,18 @@ struct ContentView: View {
 }
 ```
 
+## Building the Demo App
+
+A Makefile is provided for building the FlowDemo application. Build output is placed in the local `build` directory.
+
+```bash
+make build    # Build the demo app (Debug configuration, universal binary)
+make run      # Build and run the FlowDemo app
+make clean    # Clean build artifacts
+make help     # Show available targets
+```
+
 ## Documentation
 
-The API Reference can be found on [the AudioKit Website](https://www.audiokit.io/Flow). 
+The API Reference can be found on [the AudioKit Website](https://www.audiokit.io/Flow).
 Package contains a demo project and a playground to help you get started quickly.

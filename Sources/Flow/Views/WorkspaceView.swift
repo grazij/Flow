@@ -22,8 +22,13 @@ struct WorkspaceView: UIViewRepresentable {
 
         @objc func panGesture(sender: UIPanGestureRecognizer) {
             let t = sender.translation(in: nil)
-            pan.width += t.x / zoom
-            pan.height += t.y / zoom
+
+            // Update bindings on main thread to prevent race conditions with SwiftUI
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pan.width += t.x / self.zoom
+                self.pan.height += t.y / self.zoom
+            }
 
             // Reset translation.
             sender.setTranslation(CGPoint.zero, in: nil)
@@ -31,14 +36,20 @@ struct WorkspaceView: UIViewRepresentable {
 
         @objc func zoomGesture(sender: UIPinchGestureRecognizer) {
             let p = sender.location(in: nil).size
+            let currentZoom = zoom
+            let currentPan = pan
+            let scale = sender.scale
 
-            let newZoom = sender.scale * zoom
-
-            let pLocal = p * (1.0 / zoom) - pan
+            let newZoom = scale * currentZoom
+            let pLocal = p * (1.0 / currentZoom) - currentPan
             let newPan = p * (1.0 / newZoom) - pLocal
 
-            pan = newPan
-            zoom = newZoom
+            // Update bindings on main thread to prevent race conditions with SwiftUI
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pan = newPan
+                self.zoom = newZoom
+            }
 
             // Reset scale.
             sender.scale = 1.0
@@ -157,16 +168,32 @@ class PanView: NSView {
             } else {
                 panSpeed = PanView.defaultPanSpeed
             }
-            
-            pan.width += panSpeed * event.deltaX / zoom
-            pan.height += panSpeed * event.deltaY / zoom
+
+            let currentZoom = zoom
+            let deltaX = panSpeed * event.deltaX / currentZoom
+            let deltaY = panSpeed * event.deltaY / currentZoom
+
+            // Update bindings on main thread to prevent race conditions with SwiftUI
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pan.width += deltaX
+                self.pan.height += deltaY
+            }
         }
     }
 
     @objc func panGesture(sender: NSPanGestureRecognizer) {
         let t = sender.translation(in: self)
-        pan.width += t.x / zoom
-        pan.height -= t.y / zoom
+        let currentZoom = zoom
+        let deltaX = t.x / currentZoom
+        let deltaY = t.y / currentZoom
+
+        // Update bindings on main thread to prevent race conditions with SwiftUI
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pan.width += deltaX
+            self.pan.height -= deltaY
+        }
 
         // Reset translation.
         sender.setTranslation(CGPoint.zero, in: nil)
@@ -186,19 +213,30 @@ class PanView: NSView {
     }
 
     func zoom(at p: CGSize, scale: CGFloat) {
-        let newZoom = scale * zoom
+        let currentZoom = zoom
+        let currentPan = pan
 
-        let pLocal = p * (1.0 / zoom) - pan
+        let newZoom = scale * currentZoom
+        let pLocal = p * (1.0 / currentZoom) - currentPan
         let newPan = p * (1.0 / newZoom) - pLocal
 
-        pan = newPan
-        zoom = newZoom
+        // Update bindings on main thread to prevent race conditions with SwiftUI
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pan = newPan
+            self.zoom = newZoom
+        }
     }
-    
+
     override func mouseMoved(with event: NSEvent) {
         var p = convert(event.locationInWindow, from: nil)
         p.y = frame.size.height - p.y
-        mousePosition = p
+
+        // Update bindings on main thread to prevent race conditions with SwiftUI
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.mousePosition = p
+        }
     }
 
     weak var optionPanRecognizer: NSGestureRecognizer?

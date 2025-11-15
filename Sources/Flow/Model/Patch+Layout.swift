@@ -4,9 +4,81 @@ import CoreGraphics
 import Foundation
 
 public extension Patch {
+    /// Builds an adjacency map of incoming wires for each node.
+    ///
+    /// This map is used internally by `recursiveLayout` to avoid O(n × m) wire filtering.
+    /// - Returns: Dictionary mapping node indices to their incoming wires, sorted by port index.
+    private func buildIncomingWiresMap() -> [NodeIndex: [Wire]] {
+        var map: [NodeIndex: [Wire]] = [:]
+
+        // Group wires by target node
+        for wire in wires {
+            map[wire.input.nodeIndex, default: []].append(wire)
+        }
+
+        // Sort each node's incoming wires by port index
+        for (nodeIndex, wires) in map {
+            map[nodeIndex] = wires.sorted(by: { $0.input.portIndex < $1.input.portIndex })
+        }
+
+        return map
+    }
+
+    /// Recursive layout implementation with pre-built adjacency map.
+    private mutating func recursiveLayoutWithMap(
+        nodeIndex: NodeIndex,
+        at point: CGPoint,
+        layout: LayoutConstants,
+        consumedNodeIndexes: Set<NodeIndex>,
+        nodePadding: Bool,
+        incomingWiresMap: [NodeIndex: [Wire]]
+    ) -> (aggregateHeight: CGFloat,
+          consumedNodeIndexes: Set<NodeIndex>)
+    {
+        nodes[nodeIndex].position = point
+
+        // Use pre-built adjacency map instead of filtering all wires
+        let incomingWires = incomingWiresMap[nodeIndex] ?? []
+
+        var consumedNodeIndexes = consumedNodeIndexes
+
+        var height: CGFloat = 0
+        for wire in incomingWires {
+            let addPadding = wire == incomingWires.last
+            let ni = wire.output.nodeIndex
+            guard !consumedNodeIndexes.contains(ni) else { continue }
+            let rl = recursiveLayoutWithMap(
+                nodeIndex: ni,
+                at: CGPoint(x: point.x - layout.nodeWidth - layout.nodeSpacing,
+                            y: point.y + height),
+                layout: layout,
+                consumedNodeIndexes: consumedNodeIndexes,
+                nodePadding: addPadding,
+                incomingWiresMap: incomingWiresMap
+            )
+            height = rl.aggregateHeight
+            consumedNodeIndexes.insert(ni)
+            consumedNodeIndexes.formUnion(rl.consumedNodeIndexes)
+        }
+
+        let nodeHeight = nodes[nodeIndex].rect(layout: layout).height
+        let aggregateHeight = max(height, nodeHeight) + (nodePadding ? layout.nodeSpacing : 0)
+        return (aggregateHeight: aggregateHeight,
+                consumedNodeIndexes: consumedNodeIndexes)
+    }
+
     /// Recursive layout.
     ///
-    /// - Returns: Height of all nodes in subtree.
+    /// Automatically lays out nodes by working backward from a target node through wire connections.
+    /// This method builds an adjacency map once for O(n + m) performance instead of O(n × m).
+    ///
+    /// - Parameters:
+    ///   - nodeIndex: The target node to layout from.
+    ///   - point: Position for the target node.
+    ///   - layout: Layout constants for sizing.
+    ///   - consumedNodeIndexes: Set of already-positioned nodes to skip.
+    ///   - nodePadding: Whether to add spacing after this node.
+    /// - Returns: Tuple of aggregate height and set of positioned nodes.
     @discardableResult
     mutating func recursiveLayout(
         nodeIndex: NodeIndex,
@@ -17,35 +89,17 @@ public extension Patch {
     ) -> (aggregateHeight: CGFloat,
           consumedNodeIndexes: Set<NodeIndex>)
     {
-        nodes[nodeIndex].position = point
+        // Build adjacency map once for performance
+        let incomingWiresMap = buildIncomingWiresMap()
 
-        // XXX: super slow
-        let incomingWires = wires.filter {
-            $0.input.nodeIndex == nodeIndex
-        }.sorted(by: { $0.input.portIndex < $1.input.portIndex })
-
-        var consumedNodeIndexes = consumedNodeIndexes
-
-        var height: CGFloat = 0
-        for wire in incomingWires {
-            let addPadding = wire == incomingWires.last
-            let ni = wire.output.nodeIndex
-            guard !consumedNodeIndexes.contains(ni) else { continue }
-            let rl = recursiveLayout(nodeIndex: ni,
-                                     at: CGPoint(x: point.x - layout.nodeWidth - layout.nodeSpacing,
-                                                 y: point.y + height),
-                                     layout: layout,
-                                     consumedNodeIndexes: consumedNodeIndexes,
-                                     nodePadding: addPadding)
-            height = rl.aggregateHeight
-            consumedNodeIndexes.insert(ni)
-            consumedNodeIndexes.formUnion(rl.consumedNodeIndexes)
-        }
-
-        let nodeHeight = nodes[nodeIndex].rect(layout: layout).height
-        let aggregateHeight = max(height, nodeHeight) + (nodePadding ? layout.nodeSpacing : 0)
-        return (aggregateHeight: aggregateHeight,
-                consumedNodeIndexes: consumedNodeIndexes)
+        return recursiveLayoutWithMap(
+            nodeIndex: nodeIndex,
+            at: point,
+            layout: layout,
+            consumedNodeIndexes: consumedNodeIndexes,
+            nodePadding: nodePadding,
+            incomingWiresMap: incomingWiresMap
+        )
     }
 
     /// Manual stacked grid layout.

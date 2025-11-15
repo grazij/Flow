@@ -99,3 +99,17 @@ extension CGPoint {
 extension Color {
     static let magenta = Color(.sRGB, red: 1, green: 0, blue: 1, opacity: 1)
 }
+
+extension Array {
+    /// Safe array access that returns nil if index is out of bounds.
+    ///
+    /// Prevents crashes when accessing potentially invalid indices (e.g., from stale wires
+    /// referencing deleted nodes).
+    ///
+    /// - Parameter index: The index to access.
+    /// - Returns: The element at the index, or nil if out of bounds.
+    @inlinable
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}

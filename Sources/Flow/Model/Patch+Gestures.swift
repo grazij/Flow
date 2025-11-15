@@ -26,10 +26,11 @@ extension Patch {
         offset: CGSize,
         nodeMoved: NodeEditor.NodeMovedHandler
     ) {
-        if !nodes[nodeIndex].locked {
-            nodes[nodeIndex].position += offset
-            nodeMoved(nodeIndex, nodes[nodeIndex].position)
+        guard let node = nodes[safe: nodeIndex], !node.locked else {
+            return
         }
+        nodes[nodeIndex].position += offset
+        nodeMoved(nodeIndex, nodes[nodeIndex].position)
     }
 
     func selected(in rect: CGRect, layout: LayoutConstants) -> Set<NodeIndex> {

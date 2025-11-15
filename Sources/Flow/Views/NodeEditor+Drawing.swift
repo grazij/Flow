@@ -204,13 +204,21 @@ extension NodeEditor {
             hideWire = nil
         }
         for wire in patch.wires where wire != hideWire {
-            let fromPoint = self.patch.nodes[wire.output.nodeIndex].outputRect(
+            // Skip wire if nodes don't exist (stale wire references)
+            guard let outputNode = patch.nodes[safe: wire.output.nodeIndex],
+                  let inputNode = patch.nodes[safe: wire.input.nodeIndex],
+                  outputNode.outputs.indices.contains(wire.output.portIndex),
+                  inputNode.inputs.indices.contains(wire.input.portIndex) else {
+                continue
+            }
+
+            let fromPoint = outputNode.outputRect(
                 output: wire.output.portIndex,
                 layout: self.layout
             )
             .offset(by: self.offset(for: wire.output.nodeIndex)).center
 
-            let toPoint = self.patch.nodes[wire.input.nodeIndex].inputRect(
+            let toPoint = inputNode.inputRect(
                 input: wire.input.portIndex,
                 layout: self.layout
             )
@@ -226,9 +234,13 @@ extension NodeEditor {
 
     func drawDraggedWire(cx: GraphicsContext) {
         if case let .wire(output: output, offset: offset, _) = dragInfo {
-            let outputRect = self.patch
-                .nodes[output.nodeIndex]
-                .outputRect(output: output.portIndex, layout: self.layout)
+            // Skip if node doesn't exist
+            guard let outputNode = patch.nodes[safe: output.nodeIndex],
+                  outputNode.outputs.indices.contains(output.portIndex) else {
+                return
+            }
+
+            let outputRect = outputNode.outputRect(output: output.portIndex, layout: self.layout)
             let gradient = self.gradient(for: output)
             cx.strokeWire(from: outputRect.center, to: outputRect.center + offset, gradient: gradient)
         }
@@ -242,11 +254,13 @@ extension NodeEditor {
     }
 
     func gradient(for outputID: OutputID) -> Gradient {
-        let portType = patch
-            .nodes[outputID.nodeIndex]
-            .outputs[outputID.portIndex]
-            .type
-        return style.gradient(for: portType) ?? .init(colors: [.gray])
+        // Return default gradient if node or port doesn't exist
+        guard let node = patch.nodes[safe: outputID.nodeIndex],
+              let port = node.outputs[safe: outputID.portIndex] else {
+            return .init(colors: [.gray])
+        }
+
+        return style.gradient(for: port.type) ?? .init(colors: [.gray])
     }
 
     func gradient(for wire: Wire) -> Gradient {

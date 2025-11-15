@@ -79,11 +79,16 @@ extension NodeEditor {
                 case let .output(nodeIndex, portIndex):
                     dragInfo = DragInfo.wire(output: OutputID(nodeIndex, portIndex), offset: translation)
                 case let .input(nodeIndex, portIndex):
-                    let node = patch.nodes[nodeIndex]
+                    guard let node = patch.nodes[safe: nodeIndex],
+                          node.inputs.indices.contains(portIndex) else {
+                        break
+                    }
                     // Is a wire attached to the input?
-                    if let attachedWire = attachedWire(inputID: InputID(nodeIndex, portIndex)) {
+                    if let attachedWire = attachedWire(inputID: InputID(nodeIndex, portIndex)),
+                       let outputNode = patch.nodes[safe: attachedWire.output.nodeIndex],
+                       outputNode.outputs.indices.contains(attachedWire.output.portIndex) {
                         let offset = node.inputRect(input: portIndex, layout: layout).center
-                            - patch.nodes[attachedWire.output.nodeIndex].outputRect(
+                            - outputNode.outputRect(
                                 output: attachedWire.output.portIndex,
                                 layout: layout
                             ).center
@@ -127,17 +132,23 @@ extension NodeEditor {
                             }
                         }
                     case let .output(nodeIndex, portIndex):
-                        let type = patch.nodes[nodeIndex].outputs[portIndex].type
-                        if let input = findInput(point: location, type: type) {
+                        guard let node = patch.nodes[safe: nodeIndex],
+                              let port = node.outputs[safe: portIndex] else {
+                            break
+                        }
+                        if let input = findInput(point: location, type: port.type) {
                             connect(OutputID(nodeIndex, portIndex), to: input)
                         }
                     case let .input(nodeIndex, portIndex):
-                        let type = patch.nodes[nodeIndex].inputs[portIndex].type
+                        guard let node = patch.nodes[safe: nodeIndex],
+                              let port = node.inputs[safe: portIndex] else {
+                            break
+                        }
                         // Is a wire attached to the input?
                         if let attachedWire = attachedWire(inputID: InputID(nodeIndex, portIndex)) {
                             patch.wires.remove(attachedWire)
                             wireRemoved(attachedWire)
-                            if let input = findInput(point: location, type: type) {
+                            if let input = findInput(point: location, type: port.type) {
                                 connect(attachedWire.output, to: input)
                             }
                         }

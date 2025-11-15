@@ -35,6 +35,10 @@ public extension Patch {
     ) -> (aggregateHeight: CGFloat,
           consumedNodeIndexes: Set<NodeIndex>)
     {
+        guard nodes.indices.contains(nodeIndex) else {
+            return (aggregateHeight: 0, consumedNodeIndexes: consumedNodeIndexes)
+        }
+
         nodes[nodeIndex].position = point
 
         // Use pre-built adjacency map instead of filtering all wires
@@ -118,6 +122,10 @@ public extension Patch {
 
             let xPos = origin.x + (CGFloat(column) * (layout.nodeWidth + layout.nodeSpacing))
             for nodeIndex in nodeStack {
+                guard nodes.indices.contains(nodeIndex) else {
+                    continue
+                }
+
                 nodes[nodeIndex].position = .init(
                     x: xPos,
                     y: origin.y + yOffset

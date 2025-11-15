@@ -70,6 +70,17 @@ public struct NodeEditor: View {
     @State var zoom: Double = 1
     @State var mousePosition: CGPoint = CGPoint(x: CGFloat.infinity, y: CGFloat.infinity)
 
+    /// Helper struct to observe both pan and zoom changes together
+    private struct Transform: Equatable {
+        let pan: CGSize
+        let zoom: Double
+    }
+
+    /// Computed property for observing transform changes
+    private var transform: Transform {
+        Transform(pan: pan, zoom: zoom)
+    }
+
     /// Cached set of connected input ports for performance.
     /// Updated automatically when wires change.
     @State var connectedInputs: Set<InputID> = []
@@ -102,11 +113,8 @@ public struct NodeEditor: View {
                 #endif
                 .gesture(dragGesture)
         }
-        .onChange(of: pan) { newValue in
-            transformChanged(newValue, zoom)
-        }
-        .onChange(of: zoom) { newValue in
-            transformChanged(pan, newValue)
+        .onChange(of: transform) { newTransform in
+            transformChanged(newTransform.pan, newTransform.zoom)
         }
         .onChange(of: patch.wires) { newWires in
             // Update cached Sets when wires change

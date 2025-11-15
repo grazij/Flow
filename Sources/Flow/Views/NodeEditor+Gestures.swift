@@ -15,14 +15,16 @@ extension NodeEditor {
     func connect(_ output: OutputID, to input: InputID) {
         let wire = Wire(from: output, to: input)
 
-        // Remove any other wires connected to the input.
-        patch.wires = patch.wires.filter { w in
-            let result = w.input != wire.input
-            if !result {
-                wireRemoved(w)
-            }
-            return result
+        // Find and remove any other wires connected to the input.
+        let wiresToRemove = patch.wires.filter { $0.input == wire.input }
+
+        // Remove wires and notify handlers
+        for wireToRemove in wiresToRemove {
+            patch.wires.remove(wireToRemove)
+            wireRemoved(wireToRemove)
         }
+
+        // Add new wire
         patch.wires.insert(wire)
         wireAdded(wire)
     }

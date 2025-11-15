@@ -121,7 +121,7 @@ public extension Patch {
             var yOffset: CGFloat = 0
 
             let xPos = origin.x + (CGFloat(column) * (layout.nodeWidth + layout.nodeSpacing))
-            for nodeIndex in nodeStack {
+            for (stackIndex, nodeIndex) in nodeStack.enumerated() {
                 guard nodes.indices.contains(nodeIndex) else {
                     continue
                 }
@@ -133,7 +133,8 @@ public extension Patch {
 
                 let nodeHeight = nodes[nodeIndex].rect(layout: layout).height
                 yOffset += nodeHeight
-                if column != columns.indices.last {
+                // Add spacing after each node except the last one in the stack
+                if stackIndex != nodeStack.indices.last {
                     yOffset += layout.nodeSpacing
                 }
             }

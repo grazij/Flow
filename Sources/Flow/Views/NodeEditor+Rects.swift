@@ -5,7 +5,11 @@ import SwiftUI
 public extension NodeEditor {
     /// Offset to apply to a node based on selection and gesture state.
     func offset(for idx: NodeIndex) -> CGSize {
-        if patch.nodes[idx].locked {
+        // Guard against invalid node index or empty patch
+        guard let node = patch.nodes[safe: idx] else {
+            return .zero
+        }
+        if node.locked {
             return .zero
         }
         switch dragInfo {

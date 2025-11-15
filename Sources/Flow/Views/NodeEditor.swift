@@ -78,6 +78,9 @@ public struct NodeEditor: View {
     /// Updated automatically when wires change.
     @State var connectedOutputs: Set<OutputID> = []
 
+    /// Cached hit test result from gesture start to avoid redundant iterations.
+    @State var cachedHitResult: Patch.HitTestResult? = nil
+
     public var body: some View {
         ZStack {
             Canvas { cx, size in

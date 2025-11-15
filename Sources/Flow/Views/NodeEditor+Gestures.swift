@@ -72,7 +72,11 @@ extension NodeEditor {
                 let location = toLocal(drag.location)
                 let translation = toLocal(drag.translation)
 
-                switch patch.hitTest(point: startLocation, layout: layout) {
+                // Cache hit test result to avoid redundant iteration in onEnded
+                let hitResult = patch.hitTest(point: startLocation, layout: layout)
+                cachedHitResult = hitResult
+
+                switch hitResult {
                 case .none:
                     dragInfo = .selection(rect: CGRect(a: startLocation,
                                                        b: location))
@@ -107,7 +111,9 @@ extension NodeEditor {
                 let location = toLocal(drag.location)
                 let translation = toLocal(drag.translation)
 
-                let hitResult = patch.hitTest(point: startLocation, layout: layout)
+                // Use cached hit test result instead of iterating again
+                let hitResult = cachedHitResult ?? patch.hitTest(point: startLocation, layout: layout)
+                cachedHitResult = nil  // Clear cache after use
 
                 // Note that this threshold should be in screen coordinates.
                 if drag.distance > 5 {

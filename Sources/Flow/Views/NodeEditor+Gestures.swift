@@ -3,6 +3,9 @@
 import SwiftUI
 
 extension NodeEditor {
+    /// Minimum drag distance (in screen coordinates) to distinguish a drag from a tap.
+    private static let minimumDragDistance: CGFloat = 5
+
     /// State for all gestures.
     enum DragInfo {
         case wire(output: OutputID, offset: CGSize = .zero, hideWire: Wire? = nil)
@@ -46,7 +49,7 @@ extension NodeEditor {
 #if os(macOS)
     var commandGesture: some Gesture {
         DragGesture(minimumDistance: 0).modifiers(.command).onEnded { drag in
-            guard drag.distance < 5 else { return }
+            guard drag.distance < Self.minimumDragDistance else { return }
 
             let startLocation = toLocal(drag.startLocation)
 
@@ -118,7 +121,7 @@ extension NodeEditor {
                 cachedHitResult = nil  // Clear cache after use
 
                 // Note that this threshold should be in screen coordinates.
-                if drag.distance > 5 {
+                if drag.distance > Self.minimumDragDistance {
                     switch hitResult {
                     case .none:
                         let selectionRect = CGRect(a: startLocation, b: location)

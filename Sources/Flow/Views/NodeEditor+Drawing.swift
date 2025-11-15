@@ -113,8 +113,8 @@ extension NodeEditor {
 
     func drawNodes(cx: GraphicsContext, viewport: CGRect) {
 
-        let connectedInputs = Set( patch.wires.map { wire in wire.input } )
-        let connectedOutputs = Set( patch.wires.map { wire in wire.output } )
+        // Use cached Sets instead of recreating on every frame
+        // These are updated in NodeEditor.body via onChange(of: patch.wires)
 
         let selectedShading = cx.resolve(.color(style.nodeColor.opacity(0.8)))
         let unselectedShading = cx.resolve(.color(style.nodeColor.opacity(0.4)))

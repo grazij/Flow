@@ -70,16 +70,24 @@ public struct NodeEditor: View {
     @State var zoom: Double = 1
     @State var mousePosition: CGPoint = CGPoint(x: CGFloat.infinity, y: CGFloat.infinity)
 
+    /// Cached set of connected input ports for performance.
+    /// Updated automatically when wires change.
+    @State var connectedInputs: Set<InputID> = []
+
+    /// Cached set of connected output ports for performance.
+    /// Updated automatically when wires change.
+    @State var connectedOutputs: Set<OutputID> = []
+
     public var body: some View {
         ZStack {
             Canvas { cx, size in
 
                 let viewport = CGRect(origin: toLocal(.zero), size: toLocal(size))
                 cx.addFilter(.shadow(radius: 5))
-                
+
                 cx.scaleBy(x: CGFloat(zoom), y: CGFloat(zoom))
                 cx.translateBy(x: pan.width, y: pan.height)
-                
+
                 self.drawWires(cx: cx, viewport: viewport)
                 self.drawNodes(cx: cx, viewport: viewport)
                 self.drawDraggedWire(cx: cx)
@@ -96,6 +104,16 @@ public struct NodeEditor: View {
         }
         .onChange(of: zoom) { newValue in
             transformChanged(pan, newValue)
+        }
+        .onChange(of: patch.wires) { newWires in
+            // Update cached Sets when wires change
+            connectedInputs = Set(newWires.map { $0.input })
+            connectedOutputs = Set(newWires.map { $0.output })
+        }
+        .onAppear {
+            // Initialize cached Sets on first appearance
+            connectedInputs = Set(patch.wires.map { $0.input })
+            connectedOutputs = Set(patch.wires.map { $0.output })
         }
     }
 }

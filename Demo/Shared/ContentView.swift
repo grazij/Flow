@@ -52,6 +52,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             NodeEditor(patch: $patch, selection: $selection, wireSelection: $wireSelection)
+                .focusable()
                 .onDeleteCommand {
                     patch.deleteSelected(nodes: &selection, wires: &wireSelection)
                 }

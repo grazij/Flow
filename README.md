@@ -34,6 +34,10 @@ struct ContentView: View {
 
     var body: some View {
         NodeEditor(patch: $patch, selection: $selection, wireSelection: $wireSelection)
+            .focusable()  // Required on macOS for delete to work
+            .onDeleteCommand {
+                patch.deleteSelected(nodes: &selection, wires: &wireSelection)
+            }
             .onNodeMoved { index, location in
                 print("Node at index \(index) moved to \(location)")
             }
@@ -60,6 +64,7 @@ struct ContentView: View {
 - **Deletion**: Press the Delete key to remove selected nodes and wires
   - Deleting a node automatically removes all connected wires
   - Visual feedback shows selected items with highlighting
+  - **Important**: On macOS, add `.focusable()` to NodeEditor for delete to work (see example below)
 
 ### Interaction
 

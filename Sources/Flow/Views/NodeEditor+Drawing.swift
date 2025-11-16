@@ -14,7 +14,8 @@ extension GraphicsContext {
     func strokeWire(
         from: CGPoint,
         to: CGPoint,
-        gradient: Gradient
+        gradient: Gradient,
+        isSelected: Bool = false
     ) {
         let d = 0.4 * abs(to.x - from.x)
         var path = Path()
@@ -25,10 +26,21 @@ extension GraphicsContext {
             control2: CGPoint(x: to.x - d, y: to.y)
         )
 
+        let lineWidth: CGFloat = isSelected ? 4.0 : 2.0
+
+        if isSelected {
+            // Draw white outline for selected wires
+            stroke(
+                path,
+                with: .color(.white),
+                style: StrokeStyle(lineWidth: lineWidth + 2.0, lineCap: .round)
+            )
+        }
+
         stroke(
             path,
             with: .linearGradient(gradient, startPoint: from, endPoint: to),
-            style: StrokeStyle(lineWidth: 2.0, lineCap: .round)
+            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
         )
     }
 }
@@ -126,23 +138,38 @@ extension NodeEditor {
             let offset = self.offset(for: nodeIndex)
             let rect = node.rect(layout: layout).offset(by: offset)
 
-            guard rect.intersects(viewport) else { continue }
+            // Check if node is selected BEFORE viewport culling
+            let isInSelectionSet = selection.contains(nodeIndex)
+            var selected = isInSelectionSet
+
+            switch dragInfo {
+            case let .selection(rect: selectionRect):
+                // Show as selected if in selection set OR intersecting selection rectangle
+                selected = selected || rect.intersects(selectionRect)
+            case let .node(index: dragIndex, offset: _):
+                // During node drag, ensure dragged node and other selected nodes stay highlighted
+                if nodeIndex == dragIndex || (isInSelectionSet && selection.contains(dragIndex)) {
+                    selected = true
+                }
+            default:
+                break
+            }
+
+            // Always draw selected nodes, even if outside viewport (important during drag)
+            guard selected || rect.intersects(viewport) else { continue }
 
             let pos = rect.origin
 
             let cornerRadius = layout.nodeCornerRadius
             let bg = Path(roundedRect: rect, cornerRadius: cornerRadius)
 
-            var selected = false
-            switch dragInfo {
-            case let .selection(rect: selectionRect):
-                selected = rect.intersects(selectionRect)
-            default:
-                selected = selection.contains(nodeIndex)
+            cx.fill(bg, with: selected ? selectedShading : unselectedShading)
+
+            // Draw selection highlight - bright, thick outline
+            if selected {
+                cx.stroke(bg, with: .color(.white), style: .init(lineWidth: 3.0))
             }
 
-            cx.fill(bg, with: selected ? selectedShading : unselectedShading)
-            
             // Draw the title bar for the node. There seems to be
             // no better cross-platform way to render a rectangle with the top
             // two cornders rounded.
@@ -160,10 +187,11 @@ extension NodeEditor {
                                     delta: .degrees(90))
             titleBar.addLine(to: CGPoint(x: layout.nodeWidth, y: layout.nodeTitleHeight) + rect.origin.size)
             titleBar.closeSubpath()
-            
+
             cx.fill(titleBar, with: .color(node.titleBarColor))
-            
-            if rect.contains(toLocal(mousePosition)) {
+
+            // Draw hover highlight - thin outline (only if not already selected)
+            if !selected && rect.contains(toLocal(mousePosition)) {
                 cx.stroke(bg, with: .color(.white), style: .init(lineWidth: 1.0))
             }
 
@@ -227,7 +255,8 @@ extension NodeEditor {
             let bounds = CGRect(origin: fromPoint, size: toPoint - fromPoint)
             if viewport.intersects(bounds) {
                 let gradient = self.gradient(for: wire)
-                cx.strokeWire(from: fromPoint, to: toPoint, gradient: gradient)
+                let isSelected = wireSelection.contains(wire)
+                cx.strokeWire(from: fromPoint, to: toPoint, gradient: gradient, isSelected: isSelected)
             }
         }
     }

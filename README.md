@@ -30,9 +30,10 @@ func simplePatch() -> Patch {
 struct ContentView: View {
     @State var patch = simplePatch()
     @State var selection = Set<NodeIndex>()
+    @State var wireSelection = Set<Wire>()
 
     var body: some View {
-        NodeEditor(patch: $patch, selection: $selection)
+        NodeEditor(patch: $patch, selection: $selection, wireSelection: $wireSelection)
             .onNodeMoved { index, location in
                 print("Node at index \(index) moved to \(location)")
             }
@@ -42,9 +43,30 @@ struct ContentView: View {
             .onWireRemoved { wire in
                 print("Removed wire: \(wire)")
             }
+            .onNodesDeleted { indices in
+                print("Deleted nodes: \(indices)")
+            }
     }
 }
 ```
+
+## Features
+
+### Selection and Deletion
+
+- **Node Selection**: Click to select a single node, or drag to select multiple nodes with a selection rectangle
+- **Wire Selection**: Click on a wire to select it
+- **Multi-Selection**: On macOS, Command+click to toggle individual nodes or wires in/out of the selection
+- **Deletion**: Press the Delete key to remove selected nodes and wires
+  - Deleting a node automatically removes all connected wires
+  - Visual feedback shows selected items with highlighting
+
+### Interaction
+
+- **Drag Nodes**: Click and drag nodes to reposition them
+- **Create Wires**: Drag from an output port to an input port to create a connection
+- **Reconnect Wires**: Drag from an input port to disconnect and reconnect to a different output
+- **Pan & Zoom**: Use standard gestures to navigate the graph workspace
 
 ## Building the Demo App
 

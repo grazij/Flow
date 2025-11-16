@@ -13,6 +13,9 @@ public struct NodeEditor: View {
     /// Selected nodes.
     @Binding var selection: Set<NodeIndex>
 
+    /// Selected wires.
+    @Binding var wireSelection: Set<Wire>
+
     /// State for all gestures.
     @GestureState var dragInfo = DragInfo.none
 
@@ -37,26 +40,35 @@ public struct NodeEditor: View {
 
     /// Called when a wire is removed.
     var wireRemoved: WireRemovedHandler = { _ in }
-    
+
+    /// Nodes deleted handler closure.
+    public typealias NodesDeletedHandler = (_ indices: Set<NodeIndex>) -> Void
+
+    /// Called when nodes are deleted.
+    var nodesDeleted: NodesDeletedHandler = { _ in }
+
     /// Handler for pan or zoom.
     public typealias TransformChangedHandler = (_ pan: CGSize, _ zoom: CGFloat) -> Void
-    
+
     /// Called when the patch is panned or zoomed.
     var transformChanged: TransformChangedHandler = { _, _ in }
 
     /// Initialize the patch view with a patch and a selection.
     ///
-    /// To define event handlers, chain their view modifiers: ``onNodeMoved(_:)``, ``onWireAdded(_:)``, ``onWireRemoved(_:)``.
+    /// To define event handlers, chain their view modifiers: ``onNodeMoved(_:)``, ``onWireAdded(_:)``, ``onWireRemoved(_:)``, ``onNodesDeleted(_:)``.
     ///
     /// - Parameters:
     ///   - patch: Patch to display.
     ///   - selection: Set of nodes currently selected.
+    ///   - wireSelection: Set of wires currently selected.
     public init(patch: Binding<Patch>,
                 selection: Binding<Set<NodeIndex>>,
+                wireSelection: Binding<Set<Wire>> = .constant(Set<Wire>()),
                 layout: LayoutConstants = LayoutConstants())
     {
         _patch = patch
         _selection = selection
+        _wireSelection = wireSelection
         self.layout = layout
     }
 

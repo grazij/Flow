@@ -63,6 +63,12 @@ extension NodeEditor {
                 } else {
                     selection.insert(nodeIndex)
                 }
+            case let .wire(wire):
+                if wireSelection.contains(wire) {
+                    wireSelection.remove(wire)
+                } else {
+                    wireSelection.insert(wire)
+                }
             default: break
             }
         }
@@ -153,11 +159,91 @@ extension NodeEditor {
         switch hitResult {
         case .none:
             selection = Set<NodeIndex>()
+            wireSelection = Set<Wire>()
         case let .node(nodeIndex):
             selection = Set<NodeIndex>([nodeIndex])
+            wireSelection = Set<Wire>()
+        case let .wire(wire):
+            selection = Set<NodeIndex>()
+            wireSelection = Set<Wire>([wire])
         default:
             break
         }
+    }
+
+    /// Deletes selected wires and nodes.
+    ///
+    /// This method handles deletion of selected nodes and wires, automatically:
+    /// - Removing selected wires
+    /// - Removing wires connected to selected nodes (cascade deletion)
+    /// - Updating wire indices after node deletion to prevent corruption
+    /// - Clearing the selection
+    ///
+    /// Call this from `.onDeleteCommand` in your view:
+    /// ```swift
+    /// NodeEditor(patch: $patch, selection: $selection, wireSelection: $wireSelection)
+    ///     .onDeleteCommand {
+    ///         // Call deleteSelected on the NodeEditor instance
+    ///     }
+    /// ```
+    public func deleteSelected() {
+        guard !wireSelection.isEmpty || !selection.isEmpty else { return }
+
+        // Delete selected wires
+        for wire in wireSelection {
+            patch.wires.remove(wire)
+            wireRemoved(wire)
+        }
+
+        // Find and delete wires connected to selected nodes
+        let wiresToRemove = patch.wires.filter { wire in
+            selection.contains(wire.output.nodeIndex) || selection.contains(wire.input.nodeIndex)
+        }
+
+        for wire in wiresToRemove {
+            patch.wires.remove(wire)
+            wireRemoved(wire)
+        }
+
+        // Delete nodes and update wire indices
+        if !selection.isEmpty {
+            let sortedIndices = selection.sorted(by: >)
+
+            for nodeIndex in sortedIndices {
+                guard patch.nodes.indices.contains(nodeIndex) else { continue }
+                patch.nodes.remove(at: nodeIndex)
+                nodesDeleted([nodeIndex])
+
+                // Update all wire references to account for the deleted node
+                var updatedWires = Set<Wire>()
+                for wire in patch.wires {
+                    var newWire = wire
+
+                    // Adjust output node index if it's after the deleted node
+                    if wire.output.nodeIndex > nodeIndex {
+                        newWire = Wire(
+                            from: OutputID(wire.output.nodeIndex - 1, wire.output.portIndex),
+                            to: wire.input
+                        )
+                    }
+
+                    // Adjust input node index if it's after the deleted node
+                    if wire.input.nodeIndex > nodeIndex {
+                        newWire = Wire(
+                            from: newWire.output,
+                            to: InputID(wire.input.nodeIndex - 1, wire.input.portIndex)
+                        )
+                    }
+
+                    updatedWires.insert(newWire)
+                }
+                patch.wires = updatedWires
+            }
+        }
+
+        // Clear selections
+        wireSelection.removeAll()
+        selection.removeAll()
     }
 
     var dragGesture: some Gesture {
@@ -182,6 +268,9 @@ extension NodeEditor {
                     if let info = updateDragInfoForInput(nodeIndex: nodeIndex, portIndex: portIndex, translation: translation) {
                         dragInfo = info
                     }
+                case .wire:
+                    // Wires don't drag, they're only selectable on tap
+                    break
                 }
             }
             .onEnded { drag in
@@ -205,6 +294,9 @@ extension NodeEditor {
                         handleOutputDrag(nodeIndex: nodeIndex, portIndex: portIndex, location: location)
                     case let .input(nodeIndex, portIndex):
                         handleInputDrag(nodeIndex: nodeIndex, portIndex: portIndex, location: location)
+                    case .wire:
+                        // Wires don't drag
+                        break
                     }
                 } else {
                     // If we haven't moved far, then this is effectively a tap

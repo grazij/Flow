@@ -42,6 +42,7 @@ func randomPatch() -> Patch {
 struct ContentView: View {
     @State var patch = simplePatch()
     @State var selection = Set<NodeIndex>()
+    @State var wireSelection = Set<Wire>()
 
     func addNode() {
         let newNode = Node(name: "processor", titleBarColor: Color.red, inputs: ["in"], outputs: ["out"])
@@ -49,9 +50,40 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            NodeEditor(patch: $patch, selection: $selection)
-            Button("Add Node", action: addNode).padding()
+        ZStack {
+            NodeEditor(patch: $patch, selection: $selection, wireSelection: $wireSelection)
+                .onDeleteCommand {
+                    patch.deleteSelected(nodes: &selection, wires: &wireSelection)
+                }
+
+            VStack {
+                HStack {
+                    // Selection status
+                    if !selection.isEmpty || !wireSelection.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            if !selection.isEmpty {
+                                Text("Nodes: \(selection.count)")
+                            }
+                            if !wireSelection.isEmpty {
+                                Text("Wires: \(wireSelection.count)")
+                            }
+                            Text("Press Delete to remove")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(8)
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(8)
+                        .padding()
+                    }
+
+                    Spacer()
+
+                    // Add Node button
+                    Button("Add Node", action: addNode).padding()
+                }
+                Spacer()
+            }
         }
     }
 }
